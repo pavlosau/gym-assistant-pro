@@ -1,4 +1,5 @@
 import streamlit as st
+import google.generativeai as genai
 import datetime
 
 # --- SECURE IMPORTS ---
@@ -11,6 +12,12 @@ except ImportError as e:
     st.error(f"Module Import Error: {e}")
     st.stop()
 
+# Configure AI globally for the main script
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+else:
+    st.error("Missing GEMINI_API_KEY in Streamlit Secrets!")
+
 st.set_page_config(page_title="Nexus Hybrid OS", layout="wide", page_icon="⚡")
 
 # --- INITIALIZE STATE ---
@@ -21,7 +28,6 @@ if 'weekly_meals' not in st.session_state:
 if 'current_workout' not in st.session_state:
     st.session_state.current_workout = None
 
-# --- AUTHENTICATION ---
 if not st.session_state.logged_in:
     st.title("⚡ Nexus Hybrid OS")
     email = st.text_input("Email (user@test.com)")
@@ -31,14 +37,14 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.rerun()
 else:
-    # --- ATHLETE SIDEBAR ---
+    # Sidebar
     st.sidebar.title("👤 Athlete Profile")
     u_name = st.sidebar.text_input("Name", "Alex")
     u_goal = st.sidebar.selectbox("Goal", ["Hyrox Pro", "Marathon Prep", "Elite Strength"])
     u_weight = st.sidebar.number_input("Weight (kg)", 40, 160, 85)
     u_level = st.sidebar.select_slider("Level", ["Foundation", "Performance", "Elite"])
     
-    # --- AI INITIALIZATION ---
+    # Auto-generate plans if they don't exist
     if st.session_state.weekly_meals is None:
         with st.spinner("AI is crafting your nutrition..."):
             st.session_state.weekly_meals = generate_weekly_plan(u_goal, u_weight)
@@ -47,7 +53,7 @@ else:
         with st.spinner("AI is drafting your workout..."):
             st.session_state.current_workout = generate_workout_plan(u_goal, u_level)
 
-    # --- TABS NAVIGATION ---
+    # Tabs
     tabs = st.tabs(["🚀 WORKOUT", "🥗 NUTRITION", "📊 ANALYTICS", "🧠 AI ASSISTANT"])
 
     with tabs[0]:
@@ -62,13 +68,3 @@ else:
     if st.sidebar.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
-
-with st.sidebar:
-    st.divider()
-    if st.button("Test AI Connection"):
-        try:
-            test_model = genai.GenerativeModel('gemini-1.5-flash')
-            response = test_model.generate_content("Say 'Connected'")
-            st.success(f"Gemini Status: {response.text}")
-        except Exception as e:
-            st.error(f"Connection Failed: {e}")
