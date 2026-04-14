@@ -3,35 +3,23 @@ import google.generativeai as genai
 import json
 import re
 
-# Gemini Config
-try:
+def generate_weekly_plan(goal, weight, requirements="None"):
+    if "GEMINI_API_KEY" not in st.secrets: return None
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-1.5-flash')
-except:
-    st.error("Missing Gemini API Key in Secrets!")
-
-def generate_weekly_plan(goal, weight, requirements="None"):
+    
     prompt = f"""
     Create a 7-day meal plan for a {weight}kg athlete training for {goal}.
-    DIETARY RESTRICTON: {requirements}
-    
-    IF THE REQUIREMENT IS VEGAN, YOU MUST NOT INCLUDE MEAT, DAIRY, OR EGGS.
-    Return ONLY a raw JSON object. No conversational text.
-    {{
-      "Mon": {{"Breakfast": "...", "Lunch": "...", "Dinner": "..."}},
-      "Tue": {{...}}, "Wed": {{...}}, "Thu": {{...}}, "Fri": {{...}}, "Sat": {{...}}, "Sun": {{...}}
-    }}
+    DIETARY RESTRICTION: {requirements}
+    IF VEGAN, NO MEAT/DAIRY.
+    Return ONLY raw JSON:
+    {{ "Mon": {{"Breakfast": "...", "Lunch": "...", "Dinner": "..."}}, ... }}
     """
     try:
         response = model.generate_content(prompt)
-        text = response.text
-        # Clean JSON from AI chatter
-        text = text.replace("```json", "").replace("```", "").strip()
-        match = re.search(r'\{.*\}', text, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-        return None
-    except Exception as e:
+        match = re.search(r'\{.*\}', response.text, re.DOTALL)
+        return json.loads(match.group()) if match else None
+    except:
         return None
 
 def render_nutrition_tab(u_name, u_goal, u_weight):
@@ -46,4 +34,3 @@ def render_nutrition_tab(u_name, u_goal, u_weight):
                 for meal in ["Breakfast", "Lunch", "Dinner"]:
                     st.caption(meal)
                     st.write(day_data.get(meal, "N/A"))
-                st.write("---")
