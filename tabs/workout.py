@@ -3,25 +3,34 @@ import google.generativeai as genai
 import json
 import re
 
-def generate_workout_plan(goal, level, requirements="None"):
-    if "GEMINI_API_KEY" not in st.secrets: return None
+def generate_workout_plan(context, requirements="None"):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-1.5-flash')
     
-    prompt = f"Create a workout for {goal} at {level} level. Restrictions: {requirements}. Return ONLY JSON: {{'session_name': '...', 'blocks': [{{'block_name': '...', 'exercises': []}}]}}"
+    prompt = f"""
+    Create a workout for an athlete:
+    - Age: {context['age']}, Height: {context['height']}cm, Weight: {context['weight']}kg
+    - Goal: {context['goal']}, Activity: {context['activity']}
+    - Limitations: {context['injuries']}
+    - User Request: {requirements}
+
+    Rules: 
+    1. If there are injuries, provide safer alternatives.
+    2. Scale volume based on age and activity level.
+    3. Return ONLY JSON structure: {{"session_name": "...", "blocks": [{{"block_name": "...", "exercises": []}}]}}
+    """
     try:
         response = model.generate_content(prompt)
         match = re.search(r'\{.*\}', response.text, re.DOTALL)
-        return json.loads(match.group()) if match else None
+        return json.loads(match.group())
     except:
         return None
 
-def render_workout_tab(u_goal, u_level, u_weight):
-    st.title("🚀 AI Performance Coach")
+def render_workout_tab(context):
+    st.subheader(f"🔥 Daily Session for {context['goal']}")
     if st.session_state.current_workout:
         work = st.session_state.current_workout
-        st.subheader(f"🔥 {work.get('session_name')}")
         for block in work.get('blocks', []):
-            st.markdown(f"#### {block.get('block_name')}")
-            for ex in block.get('exercises', []):
-                st.checkbox(ex, key=f"ex_{ex}")
+            st.write(f"**{block['block_name']}**")
+            for ex in block['exercises']:
+                st.checkbox(ex)
