@@ -1,20 +1,13 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import datetime
-
-def render_analytics_tab(u_name, u_goal, days_to_race):
-    st.subheader("Data Trend Analysis")
-    chart_days = pd.date_range(end=datetime.date.today(), periods=15)
-    data = pd.DataFrame({
-        "Performance Index": np.linspace(60, 92, 15) + np.random.randn(15) * 3,
-        "Recovery Score": np.random.randint(40, 95, 15)
-    }, index=chart_days)
-    st.line_chart(data)
-
-    st.divider()
-    st.subheader("🧠 Nexus AI Assistant")
-    st.chat_message("assistant").write(f"Hello {u_name}. How can I help you today?")
-    query = st.text_input("Ask a question...")
+def render_analytics_tab(u_name, u_goal, u_weight):
+    st.subheader("🧠 Assistant Intelligence")
+    
+    query = st.chat_input("Ask me anything or request plan changes...")
     if query:
-        st.info("🤖 **Assistant:** I recommend 20 mins of mobility work and increasing your hydration.")
+        # Check if they are asking for a meal change
+        if "meal" in query.lower() or "plan" in query.lower() or "food" in query.lower():
+             from tabs.nutrition import get_ai_meal_plan
+             st.session_state.weekly_meals = get_ai_meal_plan(u_goal, u_weight, query)
+             st.success("Nutrition Plan updated! Go to the Nutrition tab to see changes.")
+        else:
+             # Regular AI chat
+             st.write("🤖 Assistant: I've processed your request.")
