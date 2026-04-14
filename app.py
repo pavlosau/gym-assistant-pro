@@ -1,3 +1,19 @@
+# Create a dictionary of gyms and their brand colors
+gyms = {
+    "Iron Paradise": "#FF4B4B",
+    "Elite Athletics": "#1E90FF",
+    "CrossFit Local": "#32CD32"
+}
+
+selected_gym = st.sidebar.selectbox("Accessing as Gym:", list(gyms.keys()))
+brand_color = gyms[selected_gym]
+
+# Dynamically change the button color
+st.markdown(f"""
+    <style>
+    .stButton>button {{ background-color: {brand_color}; color: white; }}
+    </style>
+    """, unsafe_allow_html=True)
 import streamlit as st
 import datetime
 
