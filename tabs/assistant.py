@@ -3,22 +3,22 @@ from tabs.nutrition import generate_weekly_plan
 
 def render_assistant_tab(u_goal, u_weight):
     st.title("🧠 Nexus AI Assistant")
-    st.write("Ask to change your diet, or for training advice.")
+    st.info("You can change your diet here. Try typing 'I am vegan now'.")
 
-    user_query = st.chat_input("Tell me to change your plan (e.g. 'I am vegan now')")
+    user_query = st.chat_input("How can I help with your training or diet?")
 
     if user_query:
         st.chat_message("user").write(user_query)
         
-        # LOGIC: Check if they want to change the plan
-        if any(x in user_query.lower() for x in ["vegan", "meal", "diet", "plan", "food", "eat"]):
-            with st.spinner("Rewriting your entire 7-day plan..."):
-                # Global update
+        # Check if user wants a diet change
+        keywords = ["vegan", "meal", "diet", "plan", "food", "meat", "allergic"]
+        if any(x in user_query.lower() for x in keywords):
+            with st.spinner("Gemini is rewriting your plan to match your request..."):
                 new_plan = generate_weekly_plan(u_goal, u_weight, user_query)
                 if new_plan:
                     st.session_state.weekly_meals = new_plan
-                    st.success("✅ Nutrition Plan Updated! Check the Nutrition Tab.")
+                    st.success("✅ Nutrition Plan Updated! View it in the Nutrition tab.")
                 else:
-                    st.error("AI was unable to format the plan. Try again.")
+                    st.error("AI formatting error. Please try again.")
         else:
-            st.chat_message("assistant").write("I'm here to help with training or nutrition. For meal changes, just ask!")
+            st.chat_message("assistant").write("I've logged that. Let me know if you want to adjust your meal plan!")
