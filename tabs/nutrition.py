@@ -1,58 +1,54 @@
 import streamlit as st
 import google.generativeai as genai
 import json
+import random
 
-# Setup Gemini
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Initialize Gemini (Make sure your API Key is in Streamlit Secrets)
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except:
+    st.error("Gemini API Key missing in Secrets!")
 
-def get_ai_meal_plan(goal, weight, requirements="None"):
-    """Fetch a structured 7-day plan from Gemini."""
+def generate_weekly_plan(goal, weight=85, requirements="None"):
+    """This is the function app.py is looking for."""
     prompt = f"""
-    Generate a 7-day meal plan for an athlete.
-    Athlete Goal: {goal}
-    Weight: {weight}kg
-    Additional Requirements: {requirements}
-    
-    Return ONLY a JSON object with this exact structure:
+    Generate a 7-day meal plan for a {weight}kg athlete training for {goal}.
+    Requirements: {requirements}
+    Return ONLY a JSON object:
     {{
       "Mon": {{"Breakfast": "...", "Lunch": "...", "Dinner": "..."}},
-      "Tue": {{...}},
-      ...
+      "Tue": {{...}}, "Wed": {{...}}, "Thu": {{...}}, "Fri": {{...}}, "Sat": {{...}}, "Sun": {{...}}
     }}
-    Include specific high-performance foods relevant to {goal}.
     """
-    response = model.generate_content(prompt)
-    # Clean up the response to ensure it's valid JSON
-    json_str = response.text.replace("```json", "").replace("```", "").strip()
-    return json.loads(json_str)
+    try:
+        response = model.generate_content(prompt)
+        # Strip potential markdown backticks from AI response
+        clean_json = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_json)
+    except:
+        # Fallback if AI fails or API key is wrong
+        return {day: {"Breakfast": "Oats", "Lunch": "Chicken", "Dinner": "Steak"} for day in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]}
 
 def render_nutrition_tab(u_name, u_goal, u_weight, intensity_mod):
-    st.title("🥗 Gemini-Powered Nutrition")
+    st.title("🥗 Gemini AI Nutritionist")
     
-    # Initialize plan if empty
-    if "weekly_meals" not in st.session_state or st.session_state.weekly_meals is None:
-        with st.spinner("Gemini is crafting your initial plan..."):
-            st.session_state.weekly_meals = get_ai_meal_plan(u_goal, u_weight)
+    # AI Update Interface
+    with st.expander("🪄 Ask AI to modify your meals"):
+        change_req = st.text_input("e.g., 'I am vegan this week' or 'Increase calories'")
+        if st.button("Update Plan with Gemini"):
+            st.session_state.weekly_meals = generate_weekly_plan(u_goal, u_weight, change_req)
+            st.rerun()
 
-    # UI for updating via AI
-    with st.expander("🧠 Chat with Nutritionist AI"):
-        user_ask = st.text_input("Example: 'I'm traveling to Italy, make the plan Mediterranean style' or 'I'm allergic to nuts'")
-        if st.button("Update My Plan"):
-            with st.spinner("Gemini is adjusting your requirements..."):
-                st.session_state.weekly_meals = get_ai_meal_plan(u_goal, u_weight, user_ask)
-                st.success("Plan updated based on your request!")
-                st.rerun()
-
-    # Display the grid (Same as before but pulling from AI)
-    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    cols = st.columns(7)
-    
-    for i, day in enumerate(days):
-        with cols[i]:
-            st.markdown(f"### {day}")
-            day_data = st.session_state.weekly_meals.get(day, {})
-            for meal in ["Breakfast", "Lunch", "Dinner"]:
-                st.caption(meal)
-                st.write(day_data.get(meal, "N/A"))
-            st.write("---")
+    # Display the Plan
+    if st.session_state.weekly_meals:
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        cols = st.columns(7)
+        for i, day in enumerate(days):
+            with cols[i]:
+                st.markdown(f"### {day}")
+                day_data = st.session_state.weekly_meals.get(day, {})
+                for meal in ["Breakfast", "Lunch", "Dinner"]:
+                    st.caption(meal)
+                    st.write(day_data.get(meal, "Pending..."))
+                st.write("---")
