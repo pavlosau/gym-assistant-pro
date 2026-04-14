@@ -2,20 +2,16 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-def render_analytics_tab(u_name, u_goal, u_weight):
-    st.subheader("📊 Performance Lab")
-    st.line_chart(np.random.randn(15, 2))
+def render_analytics_tab():
+    st.title("📊 Performance Analytics")
     
-    st.divider()
-    st.subheader("🧠 Nexus AI Assistant")
+    # Mock Performance Data
+    chart_data = pd.DataFrame(
+        np.random.randn(20, 3),
+        columns=['Strength', 'Endurance', 'Recovery']
+    )
+    st.area_chart(chart_data)
     
-    # Cross-tab communication
-    user_query = st.chat_input("Ask me anything...")
-    if user_query:
-        if any(word in user_query.lower() for word in ["meal", "food", "plan", "diet"]):
-            from tabs.nutrition import generate_weekly_plan
-            with st.spinner("Updating your nutrition plan..."):
-                st.session_state.weekly_meals = generate_weekly_plan(u_goal, u_weight, user_query)
-                st.success("Plan updated! Head to the Nutrition tab to see your new meals.")
-        else:
-            st.write(f"🤖 **Coach:** Focusing on your {u_goal} progress, {u_name}. Make sure you're sleeping 8 hours tonight.")
+    col1, col2 = st.columns(2)
+    col1.metric("VO2 Max", "54.2", "+2.1")
+    col2.metric("Weekly Load", "450 TSS", "-10%")
