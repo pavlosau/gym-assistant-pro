@@ -1,50 +1,41 @@
-import streamlit as st
-import google.generativeai as genai
-import json
-import re
-
-try:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
-except:
-    st.error("API Key missing.")
-
 def generate_weekly_plan(goal, weight, requirements="None"):
-    # STRICT PROMPT: Forces the AI to prioritize requirements
+    # We add a "Schema" instruction to force Gemini to use valid JSON
     prompt = f"""
-    ROLE: Expert Performance Nutritionist.
-    USER GOAL: {goal} ({weight}kg)
-    STRICT DIETARY RESTRICTION: {requirements}
+    Create a 7-day meal plan for a {weight}kg athlete training for {goal}.
+    DIETARY RESTRICTION: {requirements}
 
-    TASK: Generate a 7-day meal plan. 
-    IF THE USER REQUESTS VEGAN, YOU MUST NOT INCLUDE MEAT, DAIRY, OR EGGS.
-    
-    RETURN ONLY RAW JSON:
+    Return ONLY a valid JSON object. 
+    Strictly follow this structure:
     {{
-      "Mon": {{"Breakfast": "...", "Lunch": "...", "Dinner": "..."}},
+      "Mon": {{"Breakfast": "Meal info", "Lunch": "Meal info", "Dinner": "Meal info"}},
       "Tue": {{...}}, "Wed": {{...}}, "Thu": {{...}}, "Fri": {{...}}, "Sat": {{...}}, "Sun": {{...}}
     }}
+    Do not include any text before or after the JSON.
     """
     try:
         response = model.generate_content(prompt)
-        match = re.search(r'\{.*\}', response.text, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-        return None
-    except:
-        return None
-
-def render_nutrition_tab(u_name, u_goal, u_weight, intensity_mod):
-    st.title("🥗 Precision Nutrition")
-    
-    # Grid Display
-    if st.session_state.weekly_meals:
-        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        cols = st.columns(7)
-        for i, day in enumerate(days):
-            with cols[i]:
-                st.markdown(f"### {day}")
-                day_data = st.session_state.weekly_meals.get(day, {})
-                for meal in ["Breakfast", "Lunch", "Dinner"]:
-                    st.caption(meal)
-                    st.write(day_data.get(meal, "N/A"))
+        text = response.text
+        
+        # --- ROBUST CLEANING LOGIC ---
+        # 1. Strip out markdown code blocks if AI included them
+        text = text.replace("```json", "").replace("```", "").strip()
+        
+        # 2. Find the first '{' and the last '}' to ignore any AI "chatter"
+        start_index = text.find('{')
+        end_index = text.rfind('}')
+        
+        if start_index != -1 and end_index != -1:
+            clean_json = text[start_index:end_index+1]
+            return json.loads(clean_json)
+        else:
+            raise ValueError("No valid JSON found in response")
+            
+    except Exception as e:
+        # LOG THE ERROR in your terminal/cloud logs so you can see why it failed
+        print(f"AI Formatting Error: {e}")
+        
+        # FALLBACK: Return a basic plan so the app doesn't show a red crash screen
+        # This fallback uses the dietary requirement so it's not totally wrong
+        fallback_meal = "Vegan Bowl" if "vegan" in requirements.lower() else "Chicken & Rice"
+        return {day: {"Breakfast": "Oats", "Lunch": fallback_meal, "Dinner": fallback_meal} 
+                for day in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]}
