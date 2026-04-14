@@ -3,20 +3,23 @@ import google.generativeai as genai
 import json
 import re
 
-# Gemini Config
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-1.5-flash')
 except:
-    st.error("Gemini API Key missing in Settings > Secrets!")
+    st.error("API Key missing.")
 
 def generate_weekly_plan(goal, weight, requirements="None"):
+    # STRICT PROMPT: Forces the AI to prioritize requirements
     prompt = f"""
-    Create a 7-day high-performance meal plan for a {weight}kg athlete training for {goal}.
-    Specific Requests: {requirements}
+    ROLE: Expert Performance Nutritionist.
+    USER GOAL: {goal} ({weight}kg)
+    STRICT DIETARY RESTRICTION: {requirements}
+
+    TASK: Generate a 7-day meal plan. 
+    IF THE USER REQUESTS VEGAN, YOU MUST NOT INCLUDE MEAT, DAIRY, OR EGGS.
     
-    Return ONLY a raw JSON object. No conversational text.
-    Format:
+    RETURN ONLY RAW JSON:
     {{
       "Mon": {{"Breakfast": "...", "Lunch": "...", "Dinner": "..."}},
       "Tue": {{...}}, "Wed": {{...}}, "Thu": {{...}}, "Fri": {{...}}, "Sat": {{...}}, "Sun": {{...}}
@@ -24,26 +27,17 @@ def generate_weekly_plan(goal, weight, requirements="None"):
     """
     try:
         response = model.generate_content(prompt)
-        # Find JSON block
         match = re.search(r'\{.*\}', response.text, re.DOTALL)
         if match:
             return json.loads(match.group())
-        return {day: {"Breakfast": "Oats", "Lunch": "Chicken", "Dinner": "Steak"} for day in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]}
+        return None
     except:
-        return {day: {"Breakfast": "Oats", "Lunch": "Chicken", "Dinner": "Steak"} for day in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]}
+        return None
 
 def render_nutrition_tab(u_name, u_goal, u_weight, intensity_mod):
-    st.title("🥗 Gemini AI Nutritionist")
+    st.title("🥗 Precision Nutrition")
     
-    # Update Plan via Chat
-    with st.expander("🪄 Ask AI to Change the Plan"):
-        user_req = st.text_input("e.g., 'Make it vegan', 'I don't like fish', 'Add more carbs'")
-        if st.button("Update My Plan"):
-            with st.spinner("Gemini is adjusting your requirements..."):
-                st.session_state.weekly_meals = generate_weekly_plan(u_goal, u_weight, user_req)
-                st.rerun()
-
-    # Display Grid
+    # Grid Display
     if st.session_state.weekly_meals:
         days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         cols = st.columns(7)
@@ -54,4 +48,3 @@ def render_nutrition_tab(u_name, u_goal, u_weight, intensity_mod):
                 for meal in ["Breakfast", "Lunch", "Dinner"]:
                     st.caption(meal)
                     st.write(day_data.get(meal, "N/A"))
-                st.write("---")
