@@ -62,3 +62,13 @@ else:
     if st.sidebar.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
+
+with st.sidebar:
+    st.divider()
+    if st.button("Test AI Connection"):
+        try:
+            test_model = genai.GenerativeModel('gemini-1.5-flash')
+            response = test_model.generate_content("Say 'Connected'")
+            st.success(f"Gemini Status: {response.text}")
+        except Exception as e:
+            st.error(f"Connection Failed: {e}")
